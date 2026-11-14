@@ -776,6 +776,49 @@ void testMain() {
       });
     });
 
+    group('findBrowserAlwaysUse24HourFormat', () {
+      test('defaults to false when no hour cycle is specified in languages', () {
+        EnginePlatformDispatcher.debugOverrideBrowserLanguages(['en-US']);
+        addTearDown(() => EnginePlatformDispatcher.debugOverrideBrowserLanguages(null));
+
+        expect(EnginePlatformDispatcher.findBrowserAlwaysUse24HourFormat(), isFalse);
+      });
+
+      test('detects 24-hour format from language tag with hour cycle extension', () {
+        EnginePlatformDispatcher.debugOverrideBrowserLanguages(['en-US-u-hc-h23']);
+        addTearDown(() => EnginePlatformDispatcher.debugOverrideBrowserLanguages(null));
+
+        expect(EnginePlatformDispatcher.findBrowserAlwaysUse24HourFormat(), isTrue);
+      });
+
+      test('detects 12-hour format from language tag with hour cycle extension', () {
+        EnginePlatformDispatcher.debugOverrideBrowserLanguages(['en-US-u-hc-h12']);
+        addTearDown(() => EnginePlatformDispatcher.debugOverrideBrowserLanguages(null));
+
+        expect(EnginePlatformDispatcher.findBrowserAlwaysUse24HourFormat(), isFalse);
+      });
+
+      test('debugOverrideBrowserAlwaysUse24HourFormat overrides value', () {
+        EnginePlatformDispatcher.debugOverrideBrowserAlwaysUse24HourFormat(true);
+        addTearDown(() => EnginePlatformDispatcher.debugOverrideBrowserAlwaysUse24HourFormat(null));
+
+        expect(EnginePlatformDispatcher.findBrowserAlwaysUse24HourFormat(), isTrue);
+      });
+
+      test('updateAlwaysUse24HourFormat notifies onAlwaysUse24HourFormatChanged', () {
+        var callbackCalled = false;
+        dispatcher.onAlwaysUse24HourFormatChanged = () {
+          callbackCalled = true;
+        };
+        EnginePlatformDispatcher.debugOverrideBrowserAlwaysUse24HourFormat(true);
+        addTearDown(() => EnginePlatformDispatcher.debugOverrideBrowserAlwaysUse24HourFormat(null));
+
+        dispatcher.updateAlwaysUse24HourFormat();
+        expect(dispatcher.alwaysUse24HourFormat, isTrue);
+        expect(callbackCalled, isTrue);
+      });
+    });
+
     group('AT Focus Handler Integration', () {
       test('navigation focus handler is registered during initialization', () {
         final DomElement navButton = createDomHTMLButtonElement();

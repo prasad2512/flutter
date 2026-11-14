@@ -90,6 +90,7 @@ class EnginePlatformDispatcher extends ui.PlatformDispatcher {
 
   PlatformConfiguration configuration = PlatformConfiguration(
     locales: parseBrowserLanguages(),
+    alwaysUse24HourFormat: findBrowserAlwaysUse24HourFormat(),
     textScaleFactor: findBrowserTextScaleFactor(),
     accessibilityFeatures: computeAccessibilityFeatures(),
   );
@@ -929,6 +930,7 @@ class EnginePlatformDispatcher extends ui.PlatformDispatcher {
       return;
     }
     updateLocales(); // First time, for good measure.
+    updateAlwaysUse24HourFormat();
     _onLocaleChangedSubscription = DomSubscription(
       domWindow,
       'languagechange',
@@ -936,6 +938,7 @@ class EnginePlatformDispatcher extends ui.PlatformDispatcher {
         // Update internal config, then propagate the changes.
         updateLocales();
         invokeOnLocaleChanged();
+        updateAlwaysUse24HourFormat();
       }),
     );
   }
@@ -993,6 +996,52 @@ class EnginePlatformDispatcher extends ui.PlatformDispatcher {
   // Called by `_onLocaleChangedSubscription` when browser languages change.
   void updateLocales() {
     configuration = configuration.copyWith(locales: parseBrowserLanguages());
+  }
+
+  /// Updates [alwaysUse24HourFormat] from browser preferences and notifies listeners if changed.
+  void updateAlwaysUse24HourFormat() {
+    final bool newFormat = findBrowserAlwaysUse24HourFormat();
+    if (configuration.alwaysUse24HourFormat != newFormat) {
+      configuration = configuration.copyWith(alwaysUse24HourFormat: newFormat);
+      invokeOnPlatformConfigurationChanged();
+      invokeOnAlwaysUse24HourFormatChanged();
+    }
+  }
+
+  /// Overrides the browser 24-hour time format preference.
+  ///
+  /// If [value] is null, resets back to the real value.
+  ///
+  /// This is intended for tests only.
+  @visibleForTesting
+  static void debugOverrideBrowserAlwaysUse24HourFormat(bool? value) {
+    _browserAlwaysUse24HourFormatOverride = value;
+  }
+
+  static bool? _browserAlwaysUse24HourFormatOverride;
+
+  @visibleForTesting
+  static bool findBrowserAlwaysUse24HourFormat() {
+    if (_browserAlwaysUse24HourFormatOverride != null) {
+      return _browserAlwaysUse24HourFormatOverride!;
+    }
+    final List<String>? languages = _browserLanguagesOverride ?? domWindow.navigator.languages;
+    if (languages != null && languages.isNotEmpty) {
+      for (final String language in languages) {
+        try {
+          final domLocale = DomLocale(language);
+          final String? hourCycle = domLocale.hourCycle;
+          if (hourCycle == 'h23' || hourCycle == 'h24') {
+            return true;
+          } else if (hourCycle == 'h11' || hourCycle == 'h12') {
+            return false;
+          }
+        } catch (_) {
+          // Skip invalid tags.
+        }
+      }
+    }
+    return false;
   }
 
   /// Overrides the browser languages list.
